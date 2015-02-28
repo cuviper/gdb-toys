@@ -115,12 +115,14 @@ main()
 
         free(reply);
 
-        if (sig) {
-            char cont[4] = "CXX";
-            sprintf(cont, "C%02X", (uint8_t)sig);
-            gdb_send(conn, (const uint8_t *)cont, 3);
-        } else
-            gdb_send(conn, (const uint8_t *)"c", 1);
+        if (alive) {
+          if (sig) {
+              char cont[4] = "CXX";
+              sprintf(cont, "C%02X", (uint8_t)sig);
+              gdb_send(conn, (const uint8_t *)cont, 3);
+          } else
+              gdb_send(conn, (const uint8_t *)"c", 1);
+        }
     } while (alive);
 
     // close the gdbserver connection
