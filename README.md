@@ -10,8 +10,10 @@ debugging operations.
   and end markers, with checksum, and the replies are decoded from escape
   characters and run-length-encoding before printing.
 
-* **gdbsig**: A simple signal tracer via gdbserver.  It aims to be similar to
-  what you would get from `strace -e trace= cmd...`, eventually anyway.
+* **gdbtrace**: A simple signal/syscall tracer via gdbserver.  It aims to be
+  similar to what you would get from `strace`, though not decoded. (yet?)
+  A gdbserver patch is required for syscall support:
+  https://sourceware.org/ml/gdb-patches/2013-09/msg00992.html
 
 ## License
 

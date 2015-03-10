@@ -1,4 +1,4 @@
-/* gdbsig - signal tracer over the GDB remote protocol
+/* gdbtrace - signal/syscall tracer over the GDB remote protocol
  * Copyright (C) 2015 Red Hat Inc.
  *
  * This file is part of gdb-toys.
@@ -18,6 +18,7 @@
  */
 
 #include <err.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,14 +35,35 @@ static const char *gdb_signal_names[] = {
 #undef SET
   };
 
-
 static void
-print_signal(uint8_t sig)
+print_stop_reason(uint8_t *reply, size_t size)
 {
-    if (sig < GDB_SIGNAL_LAST)
+    if (size <= 3) return;
+
+    char *savetok;
+    for (char *info = strtok_r((char *) reply + 3, ";", &savetok);
+            info; info = strtok_r(NULL, ";", &savetok)) {
+        char *n = strtok(info, ":");
+        char *r = strtok(NULL, "");
+        if (n && r && !strncmp(n, "syscall_", 8))
+            printf("%s %" PRIu64 "\n", n, gdb_decode_hex_str((uint8_t*)r));
+    }
+}
+
+static uint16_t
+print_signal(uint8_t *reply, size_t size)
+{
+    if (size < 3) return 0;
+
+    uint16_t sig = gdb_decode_hex(reply[1], reply[2]);
+    if (sig == GDB_SIGNAL_TRAP) {
+        print_stop_reason(reply, size);
+        return 0;
+    } else if (sig < GDB_SIGNAL_LAST)
         printf("signal %2hu %s\n", sig, gdb_signal_names[sig]);
-    else
+    else if (sig <= UINT8_MAX)
         printf("signal %2hu ???\n", sig);
+    return sig;
 }
 
 static bool
@@ -54,12 +76,33 @@ print_exit_status(uint8_t sighigh, uint8_t siglow)
     return true;
 }
 
+static void
+catch_syscalls(struct gdb_conn *conn)
+{
+    // ref: https://sourceware.org/ml/gdb-patches/2013-09/msg00992.html
+    static const char cmd[] = "QCatchSyscalls:1";
+    gdb_send(conn, (const uint8_t *)cmd, sizeof(cmd) - 1);
+
+    size_t size;
+    uint8_t *reply = gdb_recv(conn, &size);
+    bool ok = size == 2 && !strcmp((const char*)reply, "OK");
+    free(reply);
+
+    if (ok)
+        puts("syscall tracing enabled");
+    else
+        puts("syscall tracing not supported");
+}
+
 int
 main()
 {
     // connect to gdbserver on localhost port 1234
     puts("Connecting to 127.0.0.1:1234...");
     struct gdb_conn *conn = gdb_begin_inet("127.0.0.1", 1234);
+
+    gdb_start_noack(conn);
+    catch_syscalls(conn);
 
     bool alive = true;
     gdb_send(conn, (const uint8_t *)"?", 1);
@@ -75,14 +118,8 @@ main()
             case 'S': // signal stop
             case 'T': // extended signal stop
                 if (size >= 3) {
-                    sig = gdb_decode_hex(reply[1], reply[2]);
-                    if (sig < UINT8_MAX) {
-                        ok = true;
-                        if (sig == GDB_SIGNAL_TRAP)
-                            sig = 0;
-                        else
-                            print_signal(sig);
-                    }
+                    sig = print_signal(reply, size);
+                    ok = sig <= UINT8_MAX;
                 }
                 break;
 
@@ -90,11 +127,8 @@ main()
                 if (size >= 3) {
                     alive = false;
                     printf("exited with ");
-                    sig = gdb_decode_hex(reply[1], reply[2]);
-                    if (sig < UINT8_MAX) {
-                        ok = true;
-                        print_signal(sig);
-                    }
+                    sig = print_signal(reply, size);
+                    ok = sig <= UINT8_MAX;
                 }
                 break;
 

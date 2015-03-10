@@ -56,6 +56,14 @@ uint16_t gdb_decode_hex(uint8_t msb, uint8_t lsb)
     return 16 * hex_nibble(msb) + hex_nibble(lsb);
 }
 
+uint64_t gdb_decode_hex_str(uint8_t *bytes)
+{
+    uint64_t value = 0;
+    while (isxdigit(*bytes))
+        value = 16 * value + hex_nibble(*bytes++);
+    return value;
+}
+
 
 static struct gdb_conn *
 gdb_begin(int fd)

@@ -22,6 +22,7 @@
 struct gdb_conn;
 
 uint16_t gdb_decode_hex(uint8_t msb, uint8_t lsb);
+uint64_t gdb_decode_hex_str(uint8_t *bytes);
 
 struct gdb_conn *gdb_begin_inet(const char *addr, uint16_t port);
 

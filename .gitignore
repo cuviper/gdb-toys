@@ -1,4 +1,4 @@
 /cscope.*
 *.o
 /gdbi
-/gdbsig
+/gdbtrace
