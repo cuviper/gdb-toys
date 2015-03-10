@@ -192,6 +192,15 @@ recv_packet(FILE *in, size_t *ret_size, bool* ret_sum_ok)
                     *ret_sum_ok = sum == gdb_decode_hex(msb, lsb);
                 }
                 *ret_size = i;
+
+                // terminate it for good measure
+                if (i == size) {
+                    reply = realloc(reply, size + 1);
+                    if (reply == NULL)
+                        err(1, "realloc");
+                }
+                reply[i] = '\0';
+
                 return reply;
 
             case '}': // escape: next char is XOR 0x20
