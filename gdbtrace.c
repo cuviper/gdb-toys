@@ -40,7 +40,7 @@ print_stop_reason(uint8_t *reply, size_t size)
 {
     if (size <= 3) return;
 
-    char *savetok;
+    char *savetok = NULL;
     for (char *info = strtok_r((char *) reply + 3, ";", &savetok);
             info; info = strtok_r(NULL, ";", &savetok)) {
         char *n = strtok(info, ":");
